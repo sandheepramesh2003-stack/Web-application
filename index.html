@@ -59,6 +59,18 @@
             color: #94a3b8;
             font-family: monospace;
         }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
     </style>
 </head>
 <body class="bg-gray-100 h-screen flex flex-col">
@@ -66,7 +78,10 @@
     <!-- Header -->
     <header class="bg-white shadow-md p-4 flex justify-between items-center">
         <h1 class="text-2xl font-bold text-gray-800">HTML Playground 🎨</h1>
-        <button id="reset-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Reset Canvas</button>
+        <div>
+            <button id="assessment-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors mr-2">Assessments</button>
+            <button id="reset-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Reset Canvas</button>
+        </div>
     </header>
 
     <!-- Main Content -->
@@ -138,11 +153,56 @@
         </div>
     </div>
 
+    <!-- Assessment Password Modal -->
+    <div id="password-modal" class="modal-overlay hidden">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-2xl w-full max-w-sm text-white">
+            <h2 class="text-2xl font-bold mb-4">Assessment Locked</h2>
+            <p class="text-gray-400 mb-4">Enter the password to begin Level 1.</p>
+            <form id="password-form">
+                <input type="password" id="password-input" class="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-green-500">
+                <p id="error-message" class="text-red-500 text-sm mb-4 hidden">Incorrect password. Please try again.</p>
+                <div class="flex justify-end gap-4">
+                    <button type="button" id="cancel-password" class="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-lg">Cancel</button>
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Unlock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assessment Target Modal -->
+    <div id="assessment-modal" class="modal-overlay hidden">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl h-3/4 flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Level 1: My Favorite Animal</h2>
+                <button id="close-assessment" class="text-2xl font-bold">&times;</button>
+            </div>
+            <p class="text-gray-600 mb-4">Use the tags in the toolbox to build a webpage that looks exactly like this target!</p>
+            <div class="flex-grow overflow-y-auto bg-gray-100 p-4 rounded-lg border">
+                <!-- Target content -->
+                <h1 class="text-4xl font-bold text-center">The Mighty Lion</h1>
+                <img src="https://placehold.co/600x300/f97316/FFFFFF?text=A+Big+Lion" alt="Lion" class="my-4 rounded-lg mx-auto">
+                <p class="text-lg">The lion is a large cat of the genus Panthera native to Africa and India. It is a muscular, deep-chested cat with a short, rounded head, a reduced neck and round ears.</p>
+                <hr class="my-4 border-t-2">
+                <div class="text-center">
+                    <button class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Learn More on Wikipedia</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const draggables = document.querySelectorAll('.tag-draggable');
         const editorArea = document.getElementById('editor-area');
         const previewArea = document.getElementById('preview-area');
         const resetBtn = document.getElementById('reset-btn');
+        const assessmentBtn = document.getElementById('assessment-btn');
+        const passwordModal = document.getElementById('password-modal');
+        const passwordForm = document.getElementById('password-form');
+        const passwordInput = document.getElementById('password-input');
+        const cancelPasswordBtn = document.getElementById('cancel-password');
+        const errorMessage = document.getElementById('error-message');
+        const assessmentModal = document.getElementById('assessment-modal');
+        const closeAssessmentBtn = document.getElementById('close-assessment');
 
         // --- Drag from Toolbox Logic ---
         draggables.forEach(draggable => {
@@ -158,12 +218,9 @@
         // --- Drop onto Editor Logic ---
         editorArea.addEventListener('dragover', (e) => {
             e.preventDefault();
-            editorArea.classList.add('drag-over');
-            
-            // Reordering logic
+            const afterElement = getDragAfterElement(editorArea, e.clientY);
             const draggingBlock = document.querySelector('.dragging');
             if (draggingBlock) {
-                const afterElement = getDragAfterElement(editorArea, e.clientY);
                 if (afterElement == null) {
                     editorArea.appendChild(draggingBlock);
                 } else {
@@ -172,14 +229,19 @@
             }
         });
         
-        editorArea.addEventListener('dragleave', () => editorArea.classList.remove('drag-over'));
-
         editorArea.addEventListener('drop', (e) => {
             e.preventDefault();
-            editorArea.classList.remove('drag-over');
             const tagType = e.dataTransfer.getData('text/plain');
-            if (tagType) { // Only create if it's a new tag from toolbox
-                createEditorBlock(tagType);
+            const draggingBlock = document.querySelector('.dragging');
+            
+            if (tagType && !draggingBlock) { // Only create if it's a new tag from toolbox
+                const afterElement = getDragAfterElement(editorArea, e.clientY);
+                const newBlock = createEditorBlock(tagType);
+                if (afterElement == null) {
+                    editorArea.appendChild(newBlock);
+                } else {
+                    editorArea.insertBefore(newBlock, afterElement);
+                }
             }
             updatePreview();
         });
@@ -243,23 +305,20 @@
             }
             block.innerHTML = content;
             addBlockEventListeners(block);
-            editorArea.appendChild(block);
+            return block;
         }
 
         // --- Add Event Listeners to Editor Blocks for Reordering ---
         function addBlockEventListeners(block) {
             block.addEventListener('dragstart', (e) => {
-                // Stop the toolbox drag data from interfering
-                e.dataTransfer.setData('text/plain', null); 
+                e.dataTransfer.setData('text/plain', ''); // Clear data for reordering
                 block.classList.add('dragging');
             });
             block.addEventListener('dragend', () => {
                 block.classList.remove('dragging');
-                updatePreview();
             });
         }
         
-        // Helper function to determine where to drop the reordered element
         function getDragAfterElement(container, y) {
             const draggableElements = [...container.querySelectorAll('.editor-block:not(.dragging)')];
             return draggableElements.reduce((closest, child) => {
@@ -312,6 +371,34 @@
         resetBtn.addEventListener('click', () => {
             editorArea.innerHTML = '';
             updatePreview();
+        });
+
+        // --- Assessment Modal Logic ---
+        assessmentBtn.addEventListener('click', () => {
+            passwordModal.classList.remove('hidden');
+            passwordInput.focus();
+        });
+
+        cancelPasswordBtn.addEventListener('click', () => {
+            passwordModal.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+            passwordInput.value = '';
+        });
+
+        passwordForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (passwordInput.value === 'Level1atb') {
+                passwordModal.classList.add('hidden');
+                passwordInput.value = '';
+                errorMessage.classList.add('hidden');
+                assessmentModal.classList.remove('hidden');
+            } else {
+                errorMessage.classList.remove('hidden');
+            }
+        });
+        
+        closeAssessmentBtn.addEventListener('click', () => {
+            assessmentModal.classList.add('hidden');
         });
 
     </script>
