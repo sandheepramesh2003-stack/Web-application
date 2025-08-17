@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Drag & Drop Playground</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent body scroll */
+        }
+        .tag-draggable {
+            cursor: grab;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .tag-draggable:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .tag-draggable:active, .editor-block:active {
+            cursor: grabbing;
+        }
+        #editor-area {
+            min-height: 200px;
+            border: 2px dashed #cbd5e1;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+        #editor-area.drag-over {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .editor-block {
+            padding: 12px;
+            border-left: 4px solid;
+            margin-bottom: 8px;
+            background-color: #f8fafc;
+            border-radius: 4px;
+            cursor: move;
+            transition: opacity 0.2s ease;
+        }
+        .editor-block.dragging {
+            opacity: 0.5;
+        }
+        .editable-content {
+            outline: none;
+            background-color: #e0e7ff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            min-width: 50px;
+            display: inline-block;
+        }
+        .editable-content:focus {
+            background-color: #c7d2fe;
+            box-shadow: 0 0 0 2px #6366f1;
+        }
+        .tag-syntax {
+            color: #94a3b8;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md p-4 flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-800">HTML Playground 🎨</h1>
+        <button id="reset-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Reset Canvas</button>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4 p-4 overflow-hidden">
+        
+        <!-- Left Panel: Tag Toolbox -->
+        <div id="tag-toolbox" class="bg-white rounded-lg shadow-lg p-4 overflow-y-auto">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Toolbox</h2>
+            
+            <!-- Text Tags -->
+            <div>
+                <h3 class="font-bold text-blue-600 mb-2">Text Tags</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="tag-draggable bg-blue-100 text-blue-800 p-3 rounded-lg text-center" draggable="true" data-tag="h1">Heading 1</div>
+                    <div class="tag-draggable bg-blue-100 text-blue-800 p-3 rounded-lg text-center" draggable="true" data-tag="h2">Heading 2</div>
+                    <div class="tag-draggable bg-blue-100 text-blue-800 p-3 rounded-lg text-center" draggable="true" data-tag="p">Paragraph</div>
+                    <div class="tag-draggable bg-blue-100 text-blue-800 p-3 rounded-lg text-center" draggable="true" data-tag="b">Bold Text</div>
+                    <div class="tag-draggable bg-blue-100 text-blue-800 p-3 rounded-lg text-center" draggable="true" data-tag="i">Italic Text</div>
+                    <div class="tag-draggable bg-blue-100 text-blue-800 p-3 rounded-lg text-center" draggable="true" data-tag="u">Underline</div>
+                    <div class="tag-draggable bg-blue-100 text-blue-800 p-3 rounded-lg text-center" draggable="true" data-tag="hr">Line Break</div>
+                </div>
+            </div>
+
+            <!-- Media Tags -->
+            <div class="mt-6">
+                <h3 class="font-bold text-green-600 mb-2">Media Tags</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="tag-draggable bg-green-100 text-green-800 p-3 rounded-lg text-center" draggable="true" data-tag="img">Image</div>
+                </div>
+            </div>
+            
+            <!-- Interactive Tags -->
+            <div class="mt-6">
+                <h3 class="font-bold text-purple-600 mb-2">Interactive Tags</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="tag-draggable bg-purple-100 text-purple-800 p-3 rounded-lg text-center" draggable="true" data-tag="a">Link</div>
+                    <div class="tag-draggable bg-purple-100 text-purple-800 p-3 rounded-lg text-center" draggable="true" data-tag="button">Button</div>
+                </div>
+            </div>
+
+            <!-- Fun Effects -->
+            <div class="mt-6">
+                <h3 class="font-bold text-orange-500 mb-2">Fun Effects</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="tag-draggable bg-orange-100 text-orange-800 p-3 rounded-lg text-center" draggable="true" data-tag="marquee">Scrolling Text</div>
+                    <div class="tag-draggable bg-orange-100 text-orange-800 p-3 rounded-lg text-center" draggable="true" data-tag="color">Color Text</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Workspace -->
+        <div id="workspace" class="md:col-span-2 bg-white rounded-lg shadow-lg flex flex-col overflow-hidden">
+            <!-- Editor Area -->
+            <div class="p-4 border-b">
+                <h2 class="text-xl font-semibold text-gray-700">Editor</h2>
+                <p class="text-sm text-gray-500">Drag tags here. You can also reorder them!</p>
+            </div>
+            <div id="editor-area" class="flex-grow p-4 overflow-y-auto">
+                <!-- Dropped tags will appear here -->
+            </div>
+            
+            <!-- Preview Area -->
+            <div class="p-4 border-t bg-gray-50">
+                 <h2 class="text-xl font-semibold text-gray-700">Live Preview</h2>
+            </div>
+            <div class="flex-grow bg-white border-t-2 border-gray-200">
+                <iframe id="preview-area" class="w-full h-full border-0"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const draggables = document.querySelectorAll('.tag-draggable');
+        const editorArea = document.getElementById('editor-area');
+        const previewArea = document.getElementById('preview-area');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // --- Drag from Toolbox Logic ---
+        draggables.forEach(draggable => {
+            draggable.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', e.target.dataset.tag);
+                e.target.style.opacity = '0.5';
+            });
+            draggable.addEventListener('dragend', (e) => {
+                e.target.style.opacity = '1';
+            });
+        });
+
+        // --- Drop onto Editor Logic ---
+        editorArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            editorArea.classList.add('drag-over');
+            
+            // Reordering logic
+            const draggingBlock = document.querySelector('.dragging');
+            if (draggingBlock) {
+                const afterElement = getDragAfterElement(editorArea, e.clientY);
+                if (afterElement == null) {
+                    editorArea.appendChild(draggingBlock);
+                } else {
+                    editorArea.insertBefore(draggingBlock, afterElement);
+                }
+            }
+        });
+        
+        editorArea.addEventListener('dragleave', () => editorArea.classList.remove('drag-over'));
+
+        editorArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            editorArea.classList.remove('drag-over');
+            const tagType = e.dataTransfer.getData('text/plain');
+            if (tagType) { // Only create if it's a new tag from toolbox
+                createEditorBlock(tagType);
+            }
+            updatePreview();
+        });
+
+        // --- Editor Block Creation ---
+        function createEditorBlock(tagType) {
+            const block = document.createElement('div');
+            block.classList.add('editor-block');
+            block.draggable = true;
+
+            let content = '';
+            switch (tagType) {
+                case 'h1':
+                    block.style.borderColor = '#3b82f6';
+                    content = `<span class="tag-syntax">&lt;h1&gt;</span><span class="editable-content" contenteditable="true">Big Heading Here</span><span class="tag-syntax">&lt;/h1&gt;</span>`;
+                    break;
+                case 'h2':
+                    block.style.borderColor = '#3b82f6';
+                    content = `<span class="tag-syntax">&lt;h2&gt;</span><span class="editable-content" contenteditable="true">Smaller Heading</span><span class="tag-syntax">&lt;/h2&gt;</span>`;
+                    break;
+                case 'p':
+                    block.style.borderColor = '#3b82f6';
+                    content = `<span class="tag-syntax">&lt;p&gt;</span><span class="editable-content" contenteditable="true">Type your paragraph text here.</span><span class="tag-syntax">&lt;/p&gt;</span>`;
+                    break;
+                case 'b':
+                    block.style.borderColor = '#3b82f6';
+                    content = `<span class="tag-syntax">&lt;b&gt;</span><span class="editable-content" contenteditable="true">Bold Text</span><span class="tag-syntax">&lt;/b&gt;</span>`;
+                    break;
+                case 'i':
+                    block.style.borderColor = '#3b82f6';
+                    content = `<span class="tag-syntax">&lt;i&gt;</span><span class="editable-content" contenteditable="true">Italic Text</span><span class="tag-syntax">&lt;/i&gt;</span>`;
+                    break;
+                case 'u':
+                    block.style.borderColor = '#3b82f6';
+                    content = `<span class="tag-syntax">&lt;u&gt;</span><span class="editable-content" contenteditable="true">Underlined Text</span><span class="tag-syntax">&lt;/u&gt;</span>`;
+                    break;
+                case 'hr':
+                    block.style.borderColor = '#3b82f6';
+                    content = `<span class="tag-syntax">&lt;hr&gt;</span>`;
+                    break;
+                case 'img':
+                    block.style.borderColor = '#16a34a';
+                    content = `<span class="tag-syntax">&lt;img src="</span><span class="editable-content" contenteditable="true">https://placehold.co/100</span><span class="tag-syntax">"&gt;</span>`;
+                    break;
+                case 'a':
+                     block.style.borderColor = '#7c3aed';
+                     content = `<span class="tag-syntax">&lt;a href="</span><span class="editable-content" contenteditable="true">https://www.google.com</span><span class="tag-syntax">"&gt;</span><span class="editable-content" contenteditable="true">Clickable Link Text</span><span class="tag-syntax">&lt;/a&gt;</span>`;
+                     break;
+                case 'button':
+                     block.style.borderColor = '#7c3aed';
+                     content = `<span class="tag-syntax">&lt;button onclick="window.open('</span><span class="editable-content" contenteditable="true">https://www.google.com</span><span class="tag-syntax">')"&gt;</span><span class="editable-content" contenteditable="true">Click Me</span><span class="tag-syntax">&lt;/button&gt;</span>`;
+                     break;
+                case 'marquee':
+                    block.style.borderColor = '#f97316';
+                    content = `<span class="tag-syntax">&lt;marquee&gt;</span><span class="editable-content" contenteditable="true">Whee! I'm scrolling!</span><span class="tag-syntax">&lt;/marquee&gt;</span>`;
+                    break;
+                case 'color':
+                    block.style.borderColor = '#f97316';
+                    content = `<span class="tag-syntax">&lt;p style="color: </span><span class="editable-content" contenteditable="true">red</span><span class="tag-syntax">"&gt;</span><span class="editable-content" contenteditable="true">This text is colored!</span><span class="tag-syntax">&lt;/p&gt;</span>`;
+                    break;
+            }
+            block.innerHTML = content;
+            addBlockEventListeners(block);
+            editorArea.appendChild(block);
+        }
+
+        // --- Add Event Listeners to Editor Blocks for Reordering ---
+        function addBlockEventListeners(block) {
+            block.addEventListener('dragstart', (e) => {
+                // Stop the toolbox drag data from interfering
+                e.dataTransfer.setData('text/plain', null); 
+                block.classList.add('dragging');
+            });
+            block.addEventListener('dragend', () => {
+                block.classList.remove('dragging');
+                updatePreview();
+            });
+        }
+        
+        // Helper function to determine where to drop the reordered element
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.editor-block:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        // --- Live Preview Update ---
+        function updatePreview() {
+            let htmlContent = '';
+            const blocks = editorArea.querySelectorAll('.editor-block');
+            blocks.forEach(block => {
+                const syntaxNodes = block.querySelectorAll('.tag-syntax');
+                const contentNodes = block.querySelectorAll('.editable-content');
+                
+                if (syntaxNodes.length === 1) { // hr
+                    htmlContent += `<hr>\n`;
+                } else if (syntaxNodes.length === 2 && contentNodes.length === 1 && !syntaxNodes[0].innerText.includes('img')) { // h1, h2, p, b, i, u, marquee
+                    htmlContent += `${syntaxNodes[0].innerText}${contentNodes[0].innerText}${syntaxNodes[1].innerText}\n`;
+                } else if (syntaxNodes.length === 2 && contentNodes.length === 1 && syntaxNodes[0].innerText.includes('img')) { // img
+                    htmlContent += `${syntaxNodes[0].innerText}${contentNodes[0].innerText}${syntaxNodes[1].innerText}\n`;
+                } else if (syntaxNodes.length === 3 && contentNodes.length === 2) { // a
+                    htmlContent += `${syntaxNodes[0].innerText}${contentNodes[0].innerText}${syntaxNodes[1].innerText}${contentNodes[1].innerText}${syntaxNodes[2].innerText}\n`;
+                } else if (syntaxNodes.length === 4 && contentNodes.length === 2) { // color text, button
+                    if (syntaxNodes[0].innerText.includes('button')) {
+                        htmlContent += `<button onclick="window.open('${contentNodes[0].innerText}')">${contentNodes[1].innerText}</button>\n`;
+                    } else {
+                        htmlContent += `<p style="color: ${contentNodes[0].innerText}">${contentNodes[1].innerText}</p>\n`;
+                    }
+                }
+            });
+            
+            previewArea.srcdoc = `
+                <html><head><style>
+                    body { font-family: sans-serif; padding: 1rem; font-size: 1.1rem; }
+                    img { max-width: 100%; height: auto; border-radius: 8px; }
+                    button { background-color: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+                    button:hover { background-color: #2563eb; }
+                </style></head><body>${htmlContent}</body></html>`;
+        }
+        
+        // --- General Event Listeners ---
+        editorArea.addEventListener('input', updatePreview);
+        resetBtn.addEventListener('click', () => {
+            editorArea.innerHTML = '';
+            updatePreview();
+        });
+
+    </script>
+</body>
+</html>
